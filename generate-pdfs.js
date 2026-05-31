@@ -1,251 +1,258 @@
 #!/usr/bin/env node
 /**
- * Generate PDFs with uncompressed content using standard fonts.
+ * Generate PDFs using pdf-lib which produces standard PDFs with standard fonts.
  */
-const PDFDocument = require('pdfkit');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
 
 const outDir = path.join(__dirname, 'products');
+fs.mkdirSync(outDir, { recursive: true });
 
-// Disable compression globally
-PDFDocument.prototype._doCompress = function() { return false; };
+function escapeText(s) {
+  return s.replace(/[\\()]/g, '\\$&');
+}
 
-function makePDF(title, contentLines, filename) {
-  const doc = new PDFDocument({
-    size: 'LETTER',
-    margins: { top: 50, bottom: 40, left: 50, right: 50 },
-    compress: false
-  });
+async function makePDF(title, bodyText, filename) {
+  const doc = await PDFDocument.create();
   
-  const outPath = path.join(outDir, filename);
-  doc.pipe(fs.createWriteStream(outPath));
+  // Use standard fonts (Helvetica and Helvetica-Bold are always available in any PDF viewer)
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  
+  const page = doc.addPage([612, 792]); // Letter size
+  const { width, height } = page.getSize();
+  
+  let y = height - 50;
+  const margin = 50;
+  const leading = 14;
   
   // Title
-  doc.font('Helvetica-Bold').fontSize(14).text(title, { continued: false });
-  doc.font('Helvetica').fontSize(8).fillColor('#888').text('Unburied Tools — Peer Support Operations Toolkit');
-  doc.moveDown(0.5);
-  doc.strokeColor('#2d6a4f').lineWidth(1).moveTo(50, doc.y).lineTo(565, doc.y).stroke();
-  doc.moveDown(0.5);
+  page.drawText(title, {
+    x: margin,
+    y: y,
+    size: 16,
+    font: fontBold,
+    color: rgb(0.1, 0.1, 0.1),
+  });
+  y -= 22;
   
-  for (const line of contentLines) {
-    if (doc.y > 740) doc.addPage();
+  // Subtitle
+  page.drawText('Unburied Tools - Peer Support Operations Toolkit', {
+    x: margin,
+    y: y,
+    size: 8,
+    font: font,
+    color: rgb(0.5, 0.5, 0.5),
+  });
+  y -= 12;
+  
+  // Line
+  page.drawLine({
+    start: { x: margin, y: y },
+    end: { x: width - margin, y: y },
+    thickness: 1,
+    color: rgb(0.176, 0.416, 0.310),
+  });
+  y -= 18;
+  
+  const lines = bodyText.split('\n');
+  
+  for (const line of lines) {
+    if (y < 50) {
+      // New page
+      const newPage = doc.addPage([612, 792]);
+      y = height - 50;
+    }
     
-    if (line === '') {
-      doc.moveDown(0.3);
+    if (line.trim() === '') {
+      y -= 10;
       continue;
     }
     
-    if (line.startsWith('##')) {
-      doc.moveDown(0.2);
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#2d6a4f').text(line.replace('## ', ''));
-      doc.moveDown(0.1);
+    if (line.startsWith('## ')) {
+      const text = line.replace('## ', '').trim();
+      page.drawText(text, {
+        x: margin,
+        y: y,
+        size: 12,
+        font: fontBold,
+        color: rgb(0.176, 0.416, 0.310),
+      });
+      y -= 20;
     } else {
-      doc.font('Courier').fontSize(9).fillColor('#1a1a1a').text(line);
+      const text = line.trim();
+      page.drawText(text, {
+        x: margin + 10,
+        y: y,
+        size: 9,
+        font: font,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+      y -= leading;
     }
   }
   
-  // Add closing footer
-  doc.moveDown(2);
-  doc.font('Helvetica').fontSize(7).fillColor('#aaa').text('© 2026 Unburied Tools — Free for personal and nonprofit use.');
+  // Footer
+  page.drawText('(c) 2026 Unburied Tools - Free for personal and nonprofit use.', {
+    x: margin,
+    y: 30,
+    size: 7,
+    font: font,
+    color: rgb(0.6, 0.6, 0.6),
+  });
   
-  doc.end();
-  console.log(`✓ ${filename}`);
+  const pdfBytes = await doc.save();
+  const outPath = path.join(outDir, filename);
+  fs.writeFileSync(outPath, pdfBytes);
+  
+  const size = fs.statSync(outPath).size;
+  console.log(`✓ ${filename} (${size} bytes)`);
 }
 
-// 1. Starting a Peer Support Group
-makePDF('Starting a Peer Support Group', [
-  '## Phase 1: Foundation',
-  '[  ] Define your purpose. What specific need does this group meet?',
-  '[  ] Choose a format. In-person, virtual, or hybrid?',
-  '[  ] Set a schedule. Weekly? Bi-weekly? Same time every session.',
-  '[  ] Identify your co-facilitator. Never facilitate alone.',
-  '[  ] Draft group agreements.',
-  '[  ] Find a venue or pick a video platform.',
-  '',
-  '## Phase 2: Operations',
-  '[  ] Create an intake form. Name, contact, what brings them.',
-  '[  ] Set a max group size. 6-8 is the sweet spot.',
-  '[  ] Establish a waitlist process.',
-  '[  ] Draft a confidentiality agreement.',
-  '[  ] Decide on record-keeping practices.',
-  '[  ] Set boundaries. What happens between sessions?',
-  '',
-  '## Phase 3: Launch',
-  '[  ] Recruit your first members.',
-  '[  ] Do a dry run with your co-facilitator.',
-  '[  ] Prepare an opening script.',
-  '[  ] Prepare a closing ritual.',
-  '[  ] Send a pre-session email.',
-  '',
-  '## Phase 4: Sustain',
-  '[  ] Debrief after each session.',
-  '[  ] Track attendance.',
-  '[  ] Check in with your co-facilitator.',
-  '[  ] Review group agreements periodically.',
-  '[  ] Evaluate every 6-8 sessions.',
-], 'starting-a-peer-support-group.pdf');
+async function main() {
+  // 1. Starting a Peer Support Group
+  await makePDF('Starting a Peer Support Group', 
+    '## Phase 1: Foundation\n' +
+    '  Define your purpose. What need does this group meet?\n' +
+    '  Choose a format. In-person, virtual, or hybrid?\n' +
+    '  Set a schedule. Weekly? Bi-weekly?\n' +
+    '  Identify your co-facilitator.\n' +
+    '  Draft group agreements.\n' +
+    '  Find a venue or pick a video platform.\n\n' +
+    '## Phase 2: Operations\n' +
+    '  Create an intake form.\n' +
+    '  Set a max group size (6-8).\n' +
+    '  Establish a waitlist.\n' +
+    '  Draft a confidentiality agreement.\n' +
+    '  Set boundaries between sessions.\n\n' +
+    '## Phase 3: Launch\n' +
+    '  Recruit your first members.\n' +
+    '  Do a dry run with co-facilitator.\n' +
+    '  Prepare an opening script.\n' +
+    '  Prepare a closing ritual.\n' +
+    '  Send a pre-session email.\n\n' +
+    '## Phase 4: Sustain\n' +
+    '  Debrief after each session.\n' +
+    '  Track attendance.\n' +
+    '  Check in with co-facilitator.\n' +
+    '  Review group agreements.\n' +
+    '  Evaluate every 6 to 8 sessions.',
+    'starting-a-peer-support-group.pdf');
+  
+  // 2. Confidentiality Agreement
+  await makePDF('Confidentiality & Safety Agreement',
+    'OUR COMMITMENT\n' +
+    '  A space where people can speak honestly without fear.\n\n' +
+    'CONFIDENTIALITY\n' +
+    '  Everything shared stays in this group.\n' +
+    '  No recordings or notes that identify others.\n' +
+    '  Outside the group, do not discuss others.\n\n' +
+    'EXCEPTIONS (required by law)\n' +
+    '  Immediate risk of serious harm.\n' +
+    '  Suspected abuse of child, elder, or vulnerable adult.\n' +
+    '  Valid legal order.\n\n' +
+    'SAFETY GUIDELINES\n' +
+    '  No fixing. Peer support is not therapy.\n' +
+    '  Share only what you are comfortable with.\n' +
+    '  One person speaks at a time.\n' +
+    '  No solicitation or self-promotion.\n\n' +
+    'ACKNOWLEDGMENT\n\n' +
+    '  Name: _______________________________\n' +
+    '  Date: _______________________________\n' +
+    '  Group: ______________________________',
+    'confidentiality-agreement.pdf');
+  
+  // 3. Intake Form
+  await makePDF('Peer Support Interest / Intake Form',
+    'CONTACT INFORMATION\n' +
+    '  Name: _______________________________\n' +
+    '  Pronouns: ___________________________\n' +
+    '  Email: ______________________________\n' +
+    '  Phone: ______________________________\n\n' +
+    'INTEREST\n' +
+    '  ___ Peer support group  ___ One-on-one\n' +
+    '  What brings you here?\n' +
+    '  _____________________________________\n\n' +
+    'LOGISTICS\n' +
+    '  Format: ___ In person  ___ Virtual\n' +
+    '  Times: ___ Morn  ___ Afternoon  ___ Eve\n' +
+    '  Accessibility needs: ________________\n\n' +
+    'AGREEMENTS\n' +
+    '  ___ I understand this is not therapy.\n' +
+    '  ___ I agree to respect confidentiality.\n\n' +
+    'FOR FACILITATOR USE ONLY\n' +
+    '  Processed by: _______________________\n' +
+    '  Action: ___ Waitlist  ___ Contacted',
+    'intake-form-template.pdf');
+  
+  // 4. Session Notes
+  await makePDF('Session Notes Template',
+    'SESSION INFO\n' +
+    '  Date: _______________________________\n' +
+    '  Facilitator: ________________________\n' +
+    '  Participant or Group: _______________\n\n' +
+    'CHECK-IN THEME\n' +
+    '  _____________________________________\n\n' +
+    'KEY THEMES (no identifying details)\n' +
+    '  - ___________________________________\n' +
+    '  - ___________________________________\n' +
+    '  - ___________________________________\n\n' +
+    'FOLLOW-UP ACTIONS\n' +
+    '  Who:________ What:________ By:_______\n\n' +
+    'FACILITATOR REFLECTION (private)\n' +
+    '  What went well?\n' +
+    '  _____________________________________\n' +
+    '  What to do differently?\n' +
+    '  _____________________________________',
+    'session-notes-template.pdf');
+  
+  // 5. Outcome Tracking
+  await makePDF('Outcome Tracking Worksheet',
+    'CONNECTEDNESS\n' +
+    '  Trusted person: Start Y/N __ Now Y/N __\n' +
+    '  Feels less alone (1-5): Start __ Now __\n' +
+    '  Sessions this period: ____\n\n' +
+    'SELF-REPORTED PROGRESS\n' +
+    '  Things feel manageable? How often?\n' +
+    '  Never / Rarely / Sometimes / Often / Always\n\n' +
+    'PRACTICAL MILESTONES\n' +
+    '  Goal: __________________ Done? Y/N\n' +
+    '  Goal: __________________ Done? Y/N\n\n' +
+    'GROUP HEALTH\n' +
+    '  Average attendance: ____ / ____\n' +
+    '  New: ____  Left: ____\n\n' +
+    'PERIOD SUMMARY\n' +
+    '  Period: ___________ to ___________\n' +
+    '  Active participants: _____',
+    'outcome-tracking-worksheet.pdf');
+  
+  // 6. Facilitator Self-Care
+  await makePDF('Facilitator Self-Care Guide',
+    'SIGNS OF COMPASSION FATIGUE\n' +
+    '  Irritability - small things feel big\n' +
+    '  Numbness - stories no longer move you\n' +
+    '  Avoidance - you dread sessions\n' +
+    '  Intrusive thoughts - carrying work home\n' +
+    '  Physical symptoms - headaches, fatigue\n\n' +
+    'BOUNDARIES\n' +
+    '  Sessions start and end on time.\n' +
+    '  Not available between sessions.\n' +
+    '  Share own experiences intentionally.\n' +
+    '  Refer out when professional help needed.\n\n' +
+    'DAILY PRACTICES\n' +
+    '  Before session: 5 min of quiet.\n' +
+    '  After session: notes, transition ritual.\n' +
+    '  Weekly: review themes, connect with peer.\n\n' +
+    'WHEN TO STEP BACK\n' +
+    '  Dreading sessions for over 2 weeks.\n' +
+    '  Your own health is declining.\n' +
+    '  A trusted person is worried about you.\n' +
+    '  A participant story triggers you.\n\n' +
+    '  Stepping back is not failure.',
+    'facilitator-self-care-guide.pdf');
+  
+  console.log('\nAll 6 PDFs generated!');
+}
 
-// 2. Confidentiality Agreement
-makePDF('Confidentiality & Safety Agreement', [
-  'For participants in peer support groups.',
-  '',
-  'OUR COMMITMENT',
-  'We create a space where people can speak honestly without fear.',
-  '',
-  'CONFIDENTIALITY',
-  '- Everything shared in this group stays in this group.',
-  '- No screenshots, recordings, or notes that identify others.',
-  '- Outside the group, do not discuss other members or stories.',
-  '',
-  'EXCEPTIONS (required by law)',
-  'We may break confidentiality if:',
-  '  - Someone is at immediate risk of serious harm',
-  '  - There is suspected abuse of a child, elder, or vulnerable adult',
-  '  - We receive a valid legal order',
-  '',
-  'SAFETY GUIDELINES',
-  '- No fixing. Peer support is not therapy or advice-giving.',
-  '- Share only what you are comfortable with.',
-  '- One person speaks at a time.',
-  '- Avoid identifying details when sharing.',
-  '- No solicitation or self-promotion.',
-  '',
-  'ACKNOWLEDGMENT',
-  '',
-  'Name: ____________________________________',
-  'Date: ____________________________________',
-  'Group: ___________________________________',
-], 'confidentiality-agreement.pdf');
-
-// 3. Intake Form
-makePDF('Peer Support Interest / Intake Form', [
-  'Date received: ____________________',
-  '',
-  '## Contact Information',
-  'Name: ____________________________________',
-  'Pronouns: _______________________________',
-  'Email: ____________________________________',
-  'Phone: ______________  Best: [  ] Email  [  ] Phone  [  ] Text',
-  '',
-  '## Interest',
-  '[  ] Peer support group    [  ] One-on-one    [  ] Resources',
-  '',
-  'What brings you here?',
-  '___________________________________________________',
-  '___________________________________________________',
-  '',
-  'Have you done peer support before?  [  ] Yes  [  ] No',
-  '',
-  '## Logistics',
-  'Format: [  ] In person  [  ] Virtual  [  ] Either',
-  'Times: [  ] Morn  [  ] Afternoon  [  ] Evenings  [  ] Weekends',
-  'Accessibility needs: _______________________',
-  '',
-  '## Agreements',
-  '[  ] I understand this is peer support, not therapy.',
-  '[  ] I agree to respect confidentiality.',
-  '',
-  '## For Facilitator Use Only',
-  'Processed by: ________________  Date: ________________',
-  'Action: [  ] Waitlisted  [  ] Contacted  [  ] Referred',
-], 'intake-form-template.pdf');
-
-// 4. Session Notes
-makePDF('Session Notes Template', [
-  'Keep this brief. Notes are for continuity, not documentation.',
-  '',
-  'Date: ____________________',
-  'Facilitator(s): ____________________',
-  'Group / Participant: ____________________',
-  'Type: [  ] Group  [  ] One-on-one  [  ] Check-in',
-  '',
-  '## Check-in Theme / Opening Prompt',
-  '___________________________________________________',
-  '',
-  '## Key Themes (no identifying details)',
-  '- _________________________________________',
-  '- _________________________________________',
-  '- _________________________________________',
-  '',
-  '## Follow-up Actions',
-  'Who: ___________  What: ___________  By: ___________',
-  'Who: ___________  What: ___________  By: ___________',
-  '',
-  '## Facilitator Reflection (private)',
-  'What went well?',
-  '___________________________________________________',
-  'What would you do differently?',
-  '___________________________________________________',
-], 'session-notes-template.pdf');
-
-// 5. Outcome Tracking
-makePDF('Outcome Tracking Worksheet', [
-  'Track every 8 sessions or 3 months.',
-  '',
-  '## Connectedness',
-  'Trusted person to talk to:  Start: [  ] Yes / [  ] No   Now: [  ] / [  ]',
-  'Knows where to find support: Start: [  ] Y / [  ] N   Now: [  ] / [  ]',
-  'Feels less alone (1-5):  Start: __/5  Now: __/5',
-  'Sessions attended this period: ____',
-  '',
-  '## Self-Reported Progress',
-  '"Things feel manageable" — How often?',
-  '[  ] Never  [  ] Rarely  [  ] Sometimes  [  ] Often  [  ] Always',
-  '"I understand my situation better"',
-  '[  ] Strongly Disagree  [  ] Disagree  [  ] Neutral  [  ] Agree  [  ] Strongly Agree',
-  '',
-  '## Practical Milestones',
-  'Goal: ________________________  [  ] Done  [  ] In Progress  [  ] No',
-  'Goal: ________________________  [  ] Done  [  ] In Progress  [  ] No',
-  '',
-  '## Group Health',
-  'Average attendance: ____ / ____',
-  'New members: ____   Members who left: ____',
-  '',
-  '## Period Summary',
-  'Period: _________________ to _________________',
-  'Active participants: _____',
-  'Key outcomes: _________________________________',
-  'Challenges: ___________________________________',
-], 'outcome-tracking-worksheet.pdf');
-
-// 6. Facilitator Self-Care
-makePDF('Facilitator Self-Care Guide', [
-  'You cannot pour from an empty cup.',
-  '',
-  '## Signs of Compassion Fatigue',
-  '- Irritability: small things feel big',
-  '- Numbness: you stop feeling moved by stories',
-  '- Avoidance: you dread sessions',
-  '- Intrusive thoughts: carrying stories home',
-  '- Physical symptoms: headaches, sleep problems',
-  '- Cynicism: "nothing ever changes"',
-  '',
-  '## Boundaries',
-  'With participants:',
-  '- Sessions start and end on time.',
-  '- You are not available between sessions.',
-  '- Share own experiences intentionally.',
-  '- Refer out when professional help is needed.',
-  '',
-  'With yourself:',
-  '- Keep a separate journal for processing.',
-  '- Have at least one person to debrief with.',
-  '- Step away from work on your days off.',
-  '',
-  '## Daily Practices',
-  'Before session: 5 min quiet. Review plan. Check in with co-facilitator.',
-  'After session: Write notes. Transition ritual (walk, water, stretch).',
-  'Weekly: Review themes. One non-work activity. Connect with a peer.',
-  '',
-  '## When to Step Back',
-  '- You dread sessions for more than two weeks.',
-  '- Your own mental health is declining.',
-  '- Someone a trusted person is worried about you.',
-  '- A participant story triggers your unprocessed experience.',
-  '',
-  'Stepping back is not failure. It is the most responsible thing you can do.',
-], 'facilitator-self-care-guide.pdf');
-
-console.log('\nAll 6 PDFs generated!');
+main().catch(err => console.error('Error:', err));
