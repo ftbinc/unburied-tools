@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Unburied Tools — Digital tools for peer support professionals</title>
-  <meta name="description" content="SaaS and digital resources built for hoarding support professionals and peer-led organizations.">
+  <meta name="description" content="SaaS and digital resources built for hoarding support professionals and peer-led organizations. Free templates, checklists, and guides.">
   <style>
     :root {
       --green: #2d6a4f;
@@ -80,6 +80,50 @@
       margin-top: 28px;
     }
 
+    /* Download cards for toolkit */
+    .download-card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: box-shadow 0.15s;
+    }
+    .download-card:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .download-card .info {
+      flex: 1;
+    }
+    .download-card .info h4 {
+      font-size: 0.95rem;
+      color: var(--dark);
+      margin-bottom: 2px;
+    }
+    .download-card .info p {
+      font-size: 0.8rem;
+      color: var(--gray);
+    }
+    .download-btn {
+      background: var(--green);
+      color: white;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      margin-left: 12px;
+      transition: background 0.15s;
+    }
+    .download-btn:hover {
+      background: #1b4b38;
+    }
+
     .signup {
       background: var(--green);
       color: white;
@@ -107,7 +151,7 @@
       border-radius: 8px;
       font-size: 0.95rem;
     }
-    button {
+    .btn {
       background: white;
       color: var(--green);
       border: none;
@@ -117,7 +161,7 @@
       font-size: 0.95rem;
       cursor: pointer;
     }
-    button:hover { background: var(--light); }
+    .btn:hover { background: var(--light); }
 
     footer {
       text-align: center;
@@ -130,6 +174,8 @@
     @media (max-width: 480px) {
       header h1 { font-size: 1.8rem; }
       header { padding: 40px 0 32px; }
+      .download-card { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .download-btn { margin-left: 0; width: 100%; text-align: center; }
     }
   </style>
 </head>
@@ -145,7 +191,7 @@
 <section>
   <div class="container">
     <h2 style="font-size:1.3rem; color:var(--green); margin-bottom:4px;">Coming soon</h2>
-    <p style="color:var(--gray); font-size:0.95rem;">Practical, lean tools built from real peer support work — not tech-bro cruft.</p>
+    <p style="color:var(--gray); font-size:0.95rem; margin-bottom:28px;">Practical, lean tools built from real peer support work — not tech-bro cruft.</p>
 
     <div class="products-grid">
 
@@ -163,16 +209,63 @@
       </div>
 
       <div class="product">
-        <div class="tag">Downloads — Available now</div>
+        <div class="tag">Free downloads</div>
         <h3>Peer Support Operations Toolkit</h3>
         <p>Templates, checklists, and guides for starting and running a peer-led support group. Drawn from years of real facilitation experience.</p>
-        <ul>
-          <li>Group startup checklist</li>
-          <li>Intake form templates</li>
-          <li>Confidentiality &amp; safety agreements</li>
-          <li>Session note template</li>
-          <li>Outcome tracking worksheet</li>
-        </ul>
+
+        <div style="margin-top:20px;">
+          <div class="download-card">
+            <div class="info">
+              <h4>Starting a Peer Support Group</h4>
+              <p>Complete checklist from foundation to sustain</p>
+            </div>
+            <a class="download-btn" href="https://github.com/ftbinc/unburied-tools/raw/main/products/starting-a-peer-support-group.pdf" target="_blank" download>Download PDF</a>
+          </div>
+
+          <div class="download-card">
+            <div class="info">
+              <h4>Confidentiality &amp; Safety Agreement</h4>
+              <p>Legal and ethical template for group participants</p>
+            </div>
+            <a class="download-btn" href="https://github.com/ftbinc/unburied-tools/raw/main/products/confidentiality-agreement.pdf" target="_blank" download>Download PDF</a>
+          </div>
+
+          <div class="download-card">
+            <div class="info">
+              <h4>Intake Form Template</h4>
+              <p>Collect what you need from new participants</p>
+            </div>
+            <a class="download-btn" href="https://github.com/ftbinc/unburied-tools/raw/main/products/intake-form-template.pdf" target="_blank" download>Download PDF</a>
+          </div>
+
+          <div class="download-card">
+            <div class="info">
+              <h4>Session Notes Template</h4>
+              <p>Lightweight one-page continuity tracker</p>
+            </div>
+            <a class="download-btn" href="https://github.com/ftbinc/unburied-tools/raw/main/products/session-notes-template.pdf" target="_blank" download>Download PDF</a>
+          </div>
+
+          <div class="download-card">
+            <div class="info">
+              <h4>Outcome Tracking Worksheet</h4>
+              <p>Measure real impact over time</p>
+            </div>
+            <a class="download-btn" href="https://github.com/ftbinc/unburied-tools/raw/main/products/outcome-tracking-worksheet.pdf" target="_blank" download>Download PDF</a>
+          </div>
+
+          <div class="download-card">
+            <div class="info">
+              <h4>Facilitator Self-Care Guide</h4>
+              <p>Avoid burnout and compassion fatigue</p>
+            </div>
+            <a class="download-btn" href="https://github.com/ftbinc/unburied-tools/raw/main/products/facilitator-self-care-guide.pdf" target="_blank" download>Download PDF</a>
+          </div>
+        </div>
+
+        <p style="margin-top:20px; font-size:0.8rem; color:var(--gray);">
+          <a href="https://github.com/ftbinc/unburied-tools/archive/refs/heads/main.zip" style="color:var(--green);">Download all 6 as a ZIP</a>
+        </p>
       </div>
 
     </div>
@@ -186,7 +279,7 @@
     <form name="waitlist" method="POST" action="https://formspree.io/f/meoowrja" data-netlify="true">
       <div class="form-group">
         <input type="email" name="email" placeholder="you@organization.org" required>
-        <button type="submit">Get updates</button>
+        <button type="submit" class="btn">Get updates</button>
       </div>
     </form>
     <p style="margin-top:12px; font-size:0.8rem; opacity:0.7;">No spam. Unsubscribe anytime.</p>
